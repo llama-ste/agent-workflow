@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" font-family="IBM Plex Mono, monospace">
+  <rect width="640" height="240" rx="12" fill="#ffffff" stroke="#dde3e2"/>
+  <text x="24" y="34" font-size="13" fill="#6f7a78" letter-spacing="1">예시 스크린샷 — 실제 기록에서는 캡처 이미지</text>
+
+  <!-- BEFORE -->
+  <text x="24" y="72" font-size="12" fill="#b0402f" letter-spacing="1">BEFORE · 화면마다 금액 불일치</text>
+  <g font-size="13">
+    <rect x="24" y="86" width="270" height="40" rx="8" fill="#f7e9e5"/>
+    <text x="40" y="111" fill="#46514f">주문서 결제 금액</text>
+    <text x="270" y="111" text-anchor="end" fill="#b0402f" font-weight="600">81,900원 ↑</text>
+    <rect x="24" y="134" width="270" height="40" rx="8" fill="#f7e9e5"/>
+    <text x="40" y="159" fill="#46514f">결제 완료 금액</text>
+    <text x="270" y="159" text-anchor="end" fill="#b0402f" font-weight="600">80,100원</text>
+  </g>
+
+  <!-- AFTER -->
+  <text x="346" y="72" font-size="12" fill="#157f5c" letter-spacing="1">AFTER · 서버 값 그대로</text>
+  <g font-size="13">
+    <rect x="346" y="86" width="270" height="40" rx="8" fill="#e4f3ec"/>
+    <text x="362" y="111" fill="#46514f">주문서 결제 금액</text>
+    <text x="592" y="111" text-anchor="end" fill="#157f5c" font-weight="600">80,100원 ✓</text>
+    <rect x="346" y="134" width="270" height="40" rx="8" fill="#e4f3ec"/>
+    <text x="362" y="159" fill="#46514f">결제 완료 금액</text>
+    <text x="592" y="159" text-anchor="end" fill="#157f5c" font-weight="600">80,100원 ✓</text>
+  </g>
+
+  <text x="24" y="210" font-size="12" fill="#6f7a78">할인 10% 적용 · 세 화면 동일 값</text>
+</svg>
