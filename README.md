@@ -98,7 +98,7 @@ python3 scripts/install.py             # 실제 연결
 새 개발 환경에서는 한 줄로 클론 → 연결 → 점검한다.
 
 ```sh
-git clone git@github.com:llama-ste/ai-agent.git ~/ai-agent && cd ~/ai-agent && python3 scripts/install.py && python3 scripts/install.py --check
+git clone git@github.com:llama-ste/agent-workflow.git ~/agent-workflow && cd ~/agent-workflow && python3 scripts/install.py && python3 scripts/install.py --check
 ```
 
 설치 후 확인:
