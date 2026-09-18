@@ -67,6 +67,7 @@ AI 에이전트와의 작업은 매번 즉흥적으로 흐른다. 같은 종류�
 | `tools/*/instructions.md` | 도구별 어댑터 (Codex, Claude Code) |
 | `scripts/install.py` | 공통 원본을 전역 도구 설정에 연결 |
 | `scripts/render_worklog.py` | worklog 마크다운을 HTML로 렌더링 |
+| `scripts/sync_notion.py` | worklog 마크다운을 Notion DB로 동기화 |
 | `worklog/example.md` | worklog 형식 예제 |
 
 정보의 소유 위치는 이렇게 나뉜다.
@@ -120,15 +121,25 @@ git clone git@github.com:llama-ste/agent-workflow.git ~/agent-workflow && cd ~/a
 
 각 작업의 의사결정 서사(배경 → 검토한 방향 → 트레이드오프와 결정 → 결과)를 프론트매터 마크다운으로 남긴다. 형식과 절차는 [workflows/worklog.md](workflows/worklog.md)를 따른다.
 
-기록은 각 작업 저장소에서 생성하고, 개인 중앙 저장소(Notion 등)로 모아 성과 정리·회고에 쓴다. 공개 저장소에는 기록 데이터를 두지 않는다.
+기록은 각 작업 저장소에서 생성하고, 중앙 저장소(Notion)로 모아 성과 정리·회고에 쓴다. 공개 저장소에는 기록 데이터를 두지 않는다.
+같은 마크다운 원본을 **Notion(집계·검토)**과 **HTML(시각화)**이 나눠 쓴다.
 
-보기 좋은 결과물이 필요하면 렌더러로 HTML을 만든다.
+**Notion 동기화** — 프론트매터가 DB 속성이 되어 기간·유형·도메인으로 집계할 수 있다.
+
+```sh
+python3 scripts/sync_notion.py --init-db <부모_페이지_ID>   # 최초 1회, DB 생성
+python3 scripts/sync_notion.py 기록.md                      # 동기화
+```
+
+토큰은 `NOTION_TOKEN`, 대상 DB는 `NOTION_DB_ID` 환경변수로 읽는다(저장소에 두지 않는다). 같은 제목이 있으면 새로 만들지 않고 갱신한다.
+
+**HTML 렌더링** — 포트폴리오·블로그용 단일 파일을 만든다.
 
 ```sh
 python3 scripts/render_worklog.py 기록.md -o out.html --embed
 ```
 
-프론트매터 → 헤더·배지, 서사 섹션 → 디자인된 페이지로 렌더링한다. `--embed`는 이미지를 data URI로 인라인해 단일 파일로 만든다(블로그·공유용). 예제는 [worklog/example.md](worklog/example.md).
+프론트매터 → 헤더·배지, 서사 섹션 → 디자인된 페이지로 렌더링한다. `--embed`는 이미지를 data URI로 인라인한다. 예제는 [worklog/example.md](worklog/example.md).
 
 ## 검증
 
