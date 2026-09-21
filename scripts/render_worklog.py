@@ -260,7 +260,8 @@ TEMPLATE = """<!doctype html>
   --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px -14px rgba(0,0,0,.6);
 }}
 * {{ box-sizing:border-box; }}
-body {{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.6; -webkit-font-smoothing:antialiased; }}
+body {{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.6; -webkit-font-smoothing:antialiased;
+        word-break:keep-all; overflow-wrap:break-word; }}
 img {{ max-width:100%; }}
 .wrap {{ max-width:760px; margin:0 auto; padding:16px; padding-block:clamp(24px,5vw,56px); }}
 .eyebrow {{ font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); display:flex; align-items:center; gap:8px; margin-bottom:14px; }}
