@@ -61,6 +61,20 @@ class RenderWorklogTests(unittest.TestCase):
         self.assertIn("<p>다음 문단.</p>", out)                         # 펜스 내 빈 줄에 안 끊김
         self.assertNotIn("```", out)                                   # 펜스 기호가 본문에 안 남음
 
+    def test_list_items_with_wrapped_continuation_lines(self):
+        # 들여쓴 연속 줄이 있어도 목록으로 인식하고, 항목이 한 문단으로 뭉치지 않아야 한다.
+        source = (
+            "---\ntitle: T\n---\n\n## H\n\n"
+            "- **(A)** 첫 항목 —\n  이어지는 설명.\n"
+            "- **(B)** 둘째 항목\n  역시 이어짐.\n"
+            "- **(C)** 셋째.\n"
+        )
+        out = render_html(source)
+        self.assertIn("<ul>", out)
+        self.assertEqual(out.count("<li>"), 3)
+        self.assertIn("첫 항목 — 이어지는 설명.", out)   # 연속 줄이 같은 항목에 붙음
+        self.assertNotIn("<p>- ", out)                   # 문단으로 떨어지지 않음
+
     def test_inline_code_content_is_not_reinterpreted(self):
         out = render_html("---\ntitle: T\n---\n\n## H\n\n`**not bold**` 확인\n")
         self.assertIn("<code>**not bold**</code>", out)

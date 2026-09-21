@@ -92,6 +92,24 @@ def image_src(src, embed, base_dir):
         return src  # 파일을 못 읽으면 원본 경로를 유지한다.
 
 
+def collect_list_items(lines, marker):
+    # 목록 항목을 모은다. 들여쓴 연속 줄은 앞 항목에 이어 붙인다.
+    # 목록이 아닌 줄이 섞이면 None을 돌려준다.
+    items, current = [], None
+    for line in lines:
+        if marker.match(line):
+            if current is not None:
+                items.append(current)
+            current = marker.sub("", line).strip()
+        elif current is not None and line.strip():
+            current += " " + line.strip()
+        else:
+            return None
+    if current is not None:
+        items.append(current)
+    return items or None
+
+
 def render_chunk(block, embed, base_dir):
     lines = block.splitlines()
     image = IMAGE_RE.match(block)
@@ -99,12 +117,11 @@ def render_chunk(block, embed, base_dir):
         alt, src = image.group(1), image_src(image.group(2), embed, base_dir)
         caption = f"<figcaption>{html.escape(alt)}</figcaption>" if alt else ""
         return f'<figure><img src="{html.escape(src)}" alt="{html.escape(alt)}">{caption}</figure>'
-    if all(BULLET_RE.match(line) for line in lines):
-        items = "".join(f"<li>{render_inline(BULLET_RE.sub('', line))}</li>" for line in lines)
-        return f"<ul>{items}</ul>"
-    if all(NUMBER_RE.match(line) for line in lines):
-        items = "".join(f"<li>{render_inline(NUMBER_RE.sub('', line))}</li>" for line in lines)
-        return f"<ol>{items}</ol>"
+    for marker, tag in ((BULLET_RE, "ul"), (NUMBER_RE, "ol")):
+        items = collect_list_items(lines, marker)
+        if items:
+            body = "".join(f"<li>{render_inline(item)}</li>" for item in items)
+            return f"<{tag}>{body}</{tag}>"
     return f"<p>{render_inline(block)}</p>"
 
 

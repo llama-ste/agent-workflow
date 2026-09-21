@@ -24,9 +24,9 @@ from pathlib import Path
 from uuid import uuid4
 
 try:  # 스크립트로 직접 실행할 때
-    from render_worklog import render_html, split_front_matter, split_sections
+    from render_worklog import collect_list_items, render_html, split_front_matter, split_sections
 except ImportError:  # 저장소 루트에서 패키지 경로로 임포트할 때
-    from scripts.render_worklog import render_html, split_front_matter, split_sections
+    from scripts.render_worklog import collect_list_items, render_html, split_front_matter, split_sections
 
 API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
@@ -209,14 +209,11 @@ def chunk_blocks(chunk):
             return [{"object": "block", "type": "image",
                      "image": {"type": "external", "external": {"url": source}}}]
         return []  # 로컬 이미지는 Notion에 올리지 않는다. HTML 렌더러가 담당한다.
-    if all(BULLET_RE.match(line) for line in lines):
-        return [{"object": "block", "type": "bulleted_list_item",
-                 "bulleted_list_item": {"rich_text": rich_text(BULLET_RE.sub("", line))}}
-                for line in lines]
-    if all(NUMBER_RE.match(line) for line in lines):
-        return [{"object": "block", "type": "numbered_list_item",
-                 "numbered_list_item": {"rich_text": rich_text(NUMBER_RE.sub("", line))}}
-                for line in lines]
+    for marker, kind in ((BULLET_RE, "bulleted_list_item"), (NUMBER_RE, "numbered_list_item")):
+        items = collect_list_items(lines, marker)
+        if items:
+            return [{"object": "block", "type": kind, kind: {"rich_text": rich_text(item)}}
+                    for item in items]
     return [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": rich_text(chunk)}}]
 
 
