@@ -38,11 +38,14 @@ TYPE_OPTIONS = ["feature", "bugfix", "refactor", "decision", "ops", "review"]
 OUTCOME_OPTIONS = ["완료", "진행중", "보류"]
 # Notion 코드 블록이 받는 언어 이름. 목록에 없으면 plain text로 보낸다.
 NOTION_LANGUAGES = {
-    "bash", "shell", "javascript", "typescript", "jsx", "tsx", "json", "yaml",
+    "bash", "shell", "javascript", "typescript", "json", "yaml",
     "python", "sql", "html", "css", "scss", "diff", "markdown", "mermaid",
     "java", "go", "rust", "kotlin", "swift", "ruby", "php", "xml", "docker",
     "graphql", "toml", "plain text",
 }
+
+# Notion이 받지 않는 언어 이름은 가장 가까운 것으로 바꾼다. (tsx/jsx는 400을 낸다)
+NOTION_LANGUAGE_ALIASES = {"tsx": "typescript", "jsx": "javascript"}
 
 IMAGE_RE = re.compile(r"^!\[(.*?)\]\((.+?)\)\s*$")
 INLINE_RE = re.compile(r"\*\*(.+?)\*\*|\[(.+?)\]\((.+?)\)|`([^`]+)`")
@@ -183,6 +186,7 @@ def section_blocks(content, base_dir=None):
         if line.lstrip().startswith("```"):
             flush()
             language = line.strip().strip("`").strip() or "plain text"
+            language = NOTION_LANGUAGE_ALIASES.get(language, language)
             index += 1
             code = []
             while index < len(lines) and not lines[index].lstrip().startswith("```"):

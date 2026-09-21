@@ -103,10 +103,11 @@ class BuildBlocksTests(unittest.TestCase):
             self.assertEqual(image["image"]["file_upload"]["id"], "up-1")
             self.assertEqual(upload.call_args[0][2], "image/png")  # MIME 추론
 
-    def test_tsx_is_a_known_language(self):
+    def test_tsx_maps_to_typescript(self):
+        # Notion API는 tsx/jsx를 받지 않으므로 가장 가까운 언어로 보낸다.
         blocks = build_blocks("## H\n\n```tsx\nconst a = 1;\n```\n")
         code = next(b for b in blocks if b["type"] == "code")
-        self.assertEqual(code["code"]["language"], "tsx")
+        self.assertEqual(code["code"]["language"], "typescript")
 
     def test_unknown_code_language_falls_back(self):
         blocks = build_blocks("## H\n\n```made-up-lang\nx\n```\n")
