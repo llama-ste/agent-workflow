@@ -11,11 +11,12 @@
 - 의존성 없이 표준 라이브러리만 사용한다.
 - 프론트매터는 DB 속성으로, 본문은 페이지 블록으로 변환한다.
 - 같은 title이 이미 있으면 새로 만들지 않고 갱신한다(upsert).
-- 로컬 이미지는 보내지 않는다. 시각화는 `render_worklog.py`가 담당한다.
+- 기록 옆의 로컬 이미지는 업로드해 페이지에 넣는다. 같은 원본이 HTML·Obsidian·Notion에서 모두 보인다.
 """
 
 import argparse
 import json
+import mimetypes
 import os
 import re
 import urllib.error
@@ -37,8 +38,10 @@ TYPE_OPTIONS = ["feature", "bugfix", "refactor", "decision", "ops", "review"]
 OUTCOME_OPTIONS = ["완료", "진행중", "보류"]
 # Notion 코드 블록이 받는 언어 이름. 목록에 없으면 plain text로 보낸다.
 NOTION_LANGUAGES = {
-    "bash", "shell", "javascript", "typescript", "json", "yaml", "python",
-    "sql", "html", "css", "diff", "markdown", "mermaid", "java", "go", "rust",
+    "bash", "shell", "javascript", "typescript", "jsx", "tsx", "json", "yaml",
+    "python", "sql", "html", "css", "scss", "diff", "markdown", "mermaid",
+    "java", "go", "rust", "kotlin", "swift", "ruby", "php", "xml", "docker",
+    "graphql", "toml", "plain text",
 }
 
 IMAGE_RE = re.compile(r"^!\[(.*?)\]\((.+?)\)\s*$")
@@ -153,25 +156,25 @@ def file_block(upload_id, name):
     }}
 
 
-def build_blocks(body):
+def build_blocks(body, base_dir=None):
     blocks = []
     for index, (head, content) in enumerate(split_sections(body)):
         if index:  # 섹션 사이를 구분선으로 나눈다.
             blocks.append(divider_block())
         blocks.append({"object": "block", "type": "heading_2",
                        "heading_2": {"rich_text": rich_text(head)}})
-        blocks.extend(section_blocks(content))
+        blocks.extend(section_blocks(content, base_dir))
     return blocks
 
 
-def section_blocks(content):
+def section_blocks(content, base_dir=None):
     # 코드펜스는 내부에 빈 줄이 있을 수 있어 한 줄씩 훑으며 처리한다.
     blocks, buffer = [], []
     lines = content.strip().splitlines()
 
     def flush():
         if buffer:
-            blocks.extend(chunk_blocks("\n".join(buffer).strip()))
+            blocks.extend(chunk_blocks("\n".join(buffer).strip(), base_dir))
             buffer.clear()
 
     index = 0
@@ -200,7 +203,7 @@ def section_blocks(content):
     return blocks
 
 
-def chunk_blocks(chunk):
+def chunk_blocks(chunk, base_dir=None):
     lines = chunk.splitlines()
     image = IMAGE_RE.match(chunk)
     if image:
@@ -208,7 +211,14 @@ def chunk_blocks(chunk):
         if source.startswith(("http://", "https://")):
             return [{"object": "block", "type": "image",
                      "image": {"type": "external", "external": {"url": source}}}]
-        return []  # 로컬 이미지는 Notion에 올리지 않는다. HTML 렌더러가 담당한다.
+        if base_dir:
+            path = (Path(base_dir) / source).resolve()
+            if path.is_file():
+                mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+                upload_id = upload_file(path.read_bytes(), path.name, mime)
+                return [{"object": "block", "type": "image",
+                         "image": {"type": "file_upload", "file_upload": {"id": upload_id}}}]
+        return []  # 찾을 수 없는 이미지는 건너뛴다.
     for marker, kind in ((BULLET_RE, "bulleted_list_item"), (NUMBER_RE, "numbered_list_item")):
         items = collect_list_items(lines, marker)
         if items:
@@ -286,7 +296,7 @@ def sync(md_path, database_id, with_html=False):
         blocks.append(callout_block(front_matter["decision"]))
     if blocks:
         blocks.append(divider_block())
-    blocks.extend(build_blocks(body))
+    blocks.extend(build_blocks(body, md_path.resolve().parent))
 
     page_id = find_page(database_id, title)
     if page_id:

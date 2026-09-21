@@ -1,4 +1,7 @@
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from scripts.sync_notion import build_blocks, build_properties, callout_block, file_block, rich_text
 
@@ -83,6 +86,27 @@ class BuildBlocksTests(unittest.TestCase):
         self.assertEqual(code["code"]["language"], "bash")
         self.assertIn("echo bye", code["code"]["rich_text"][0]["text"]["content"])
         self.assertEqual(types.count("paragraph"), 1)  # 펜스 내 빈 줄에 안 끊김
+
+    def test_local_image_is_skipped_without_base_dir(self):
+        # base_dir이 없으면(업로드 불가) 로컬 이미지는 건너뛴다.
+        blocks = build_blocks("## H\n\n![로컬](assets/a.png)\n")
+        self.assertEqual([b["type"] for b in blocks].count("image"), 0)
+
+    def test_local_image_is_uploaded_when_resolvable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            (base / "assets").mkdir()
+            (base / "assets" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+            with mock.patch("scripts.sync_notion.upload_file", return_value="up-1") as upload:
+                blocks = build_blocks("## H\n\n![로컬](assets/a.png)\n", base)
+            image = next(b for b in blocks if b["type"] == "image")
+            self.assertEqual(image["image"]["file_upload"]["id"], "up-1")
+            self.assertEqual(upload.call_args[0][2], "image/png")  # MIME 추론
+
+    def test_tsx_is_a_known_language(self):
+        blocks = build_blocks("## H\n\n```tsx\nconst a = 1;\n```\n")
+        code = next(b for b in blocks if b["type"] == "code")
+        self.assertEqual(code["code"]["language"], "tsx")
 
     def test_unknown_code_language_falls_back(self):
         blocks = build_blocks("## H\n\n```made-up-lang\nx\n```\n")
