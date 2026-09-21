@@ -287,12 +287,12 @@ p {{ margin:0 0 12px; color:var(--ink-soft); max-width:66ch; }}
 p strong {{ color:var(--ink); font-weight:600; }}
 a {{ color:var(--accent); }}
 ul {{ list-style:none; padding:0; margin:0 0 12px; display:grid; gap:8px; }}
-ul li {{ display:flex; gap:10px; align-items:baseline; color:var(--ink-soft); }}
-ul li::before {{ content:"—"; color:var(--amber); font-family:var(--mono); }}
+ul li {{ position:relative; padding-left:1.15em; color:var(--ink-soft); }}
+ul li::before {{ content:"—"; position:absolute; left:0; top:0; color:var(--amber); font-family:var(--mono); }}
 ol {{ padding-left:1.3em; margin:0 0 12px; display:grid; gap:8px; }}
 ol li {{ color:var(--ink-soft); padding-left:.2em; }}
 ol li::marker {{ color:var(--accent); font-family:var(--mono); font-size:.9em; }}
-code {{ font-family:var(--mono); font-size:.88em; background:var(--surface-2); border:1px solid var(--line-soft); border-radius:5px; padding:1px 5px; color:var(--ink); }}
+code {{ font-family:var(--mono); font-size:.88em; background:var(--surface-2); border:1px solid var(--line-soft); border-radius:5px; padding:1px 5px; color:var(--ink); overflow-wrap:anywhere; }}
 pre {{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:13px 15px; overflow-x:auto; margin:0 0 14px; }}
 pre code {{ background:none; border:none; padding:0; font-size:12.5px; line-height:1.7; color:var(--ink-soft); }}
 figure {{ margin:0 0 14px; }}

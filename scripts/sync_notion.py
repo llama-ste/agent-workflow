@@ -12,6 +12,7 @@
 - 프론트매터는 DB 속성으로, 본문은 페이지 블록으로 변환한다.
 - 같은 title이 이미 있으면 새로 만들지 않고 갱신한다(upsert).
 - 기록 옆의 로컬 이미지는 업로드해 페이지에 넣는다. 같은 원본이 HTML·Obsidian·Notion에서 모두 보인다.
+- 갱신은 블록을 지우고 다시 넣으므로 첨부 파일이 매번 새로 업로드된다. 무엇이 올라갔는지는 실행 중 출력으로 확인한다.
 """
 
 import argparse
@@ -19,6 +20,7 @@ import json
 import mimetypes
 import os
 import re
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -104,6 +106,8 @@ def upload_file(content, filename, content_type):
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", "replace")
         raise SystemExit(f"파일 업로드 실패 {error.code}: {detail}") from None
+    # 동기화할 때마다 새로 업로드되므로, 무엇이 올라갔는지 보이게 한다.
+    print(f"  업로드: {filename} ({len(content) // 1024}KB)", file=sys.stderr)
     return created["id"]
 
 
@@ -222,7 +226,9 @@ def chunk_blocks(chunk, base_dir=None):
                 upload_id = upload_file(path.read_bytes(), path.name, mime)
                 return [{"object": "block", "type": "image",
                          "image": {"type": "file_upload", "file_upload": {"id": upload_id}}}]
-        return []  # 찾을 수 없는 이미지는 건너뛴다.
+        # 조용히 사라지면 알아채기 어려우므로 건너뛴 사실을 알린다.
+        print(f"  경고: 이미지를 찾지 못해 건너뜁니다 — {source}", file=sys.stderr)
+        return []
     for marker, kind in ((BULLET_RE, "bulleted_list_item"), (NUMBER_RE, "numbered_list_item")):
         items = collect_list_items(lines, marker)
         if items:
