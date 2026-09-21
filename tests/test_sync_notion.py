@@ -56,6 +56,11 @@ class RichTextTests(unittest.TestCase):
         self.assertEqual(len(tokens), 1)
         self.assertEqual(tokens[0]["text"]["content"], "그냥 문장")
 
+    def test_inline_code_becomes_code_annotation(self):
+        tokens = rich_text("설정은 `NOTION_TOKEN` 으로 읽는다")
+        coded = [t for t in tokens if t.get("annotations", {}).get("code")]
+        self.assertEqual(coded[0]["text"]["content"], "NOTION_TOKEN")
+
 
 class BuildBlocksTests(unittest.TestCase):
     def test_sections_lists_and_remote_image(self):
@@ -68,6 +73,21 @@ class BuildBlocksTests(unittest.TestCase):
         images = [b for b in blocks if b["type"] == "image"]
         self.assertEqual(len(images), 1)
         self.assertEqual(images[0]["image"]["external"]["url"], "https://example.com/b.png")
+
+    def test_code_fence_and_ordered_list_become_blocks(self):
+        blocks = build_blocks("## H\n\n1. 첫째\n2. 둘째\n\n```bash\necho hi\n\necho bye\n```\n\n끝.\n")
+        types = [b["type"] for b in blocks]
+        self.assertEqual(types.count("numbered_list_item"), 2)
+        self.assertEqual(types.count("code"), 1)
+        code = next(b for b in blocks if b["type"] == "code")
+        self.assertEqual(code["code"]["language"], "bash")
+        self.assertIn("echo bye", code["code"]["rich_text"][0]["text"]["content"])
+        self.assertEqual(types.count("paragraph"), 1)  # 펜스 내 빈 줄에 안 끊김
+
+    def test_unknown_code_language_falls_back(self):
+        blocks = build_blocks("## H\n\n```made-up-lang\nx\n```\n")
+        code = next(b for b in blocks if b["type"] == "code")
+        self.assertEqual(code["code"]["language"], "plain text")
 
     def test_sections_are_separated_by_divider(self):
         blocks = build_blocks(BODY)

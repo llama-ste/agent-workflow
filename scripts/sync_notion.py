@@ -35,9 +35,16 @@ CHILD_LIMIT = 100  # 한 요청에 붙일 수 있는 블록 수
 
 TYPE_OPTIONS = ["feature", "bugfix", "refactor", "decision", "ops", "review"]
 OUTCOME_OPTIONS = ["완료", "진행중", "보류"]
+# Notion 코드 블록이 받는 언어 이름. 목록에 없으면 plain text로 보낸다.
+NOTION_LANGUAGES = {
+    "bash", "shell", "javascript", "typescript", "json", "yaml", "python",
+    "sql", "html", "css", "diff", "markdown", "mermaid", "java", "go", "rust",
+}
 
 IMAGE_RE = re.compile(r"^!\[(.*?)\]\((.+?)\)\s*$")
-INLINE_RE = re.compile(r"\*\*(.+?)\*\*|\[(.+?)\]\((.+?)\)")
+INLINE_RE = re.compile(r"\*\*(.+?)\*\*|\[(.+?)\]\((.+?)\)|`([^`]+)`")
+BULLET_RE = re.compile(r"^\s*-\s+")
+NUMBER_RE = re.compile(r"^\s*\d+\.\s+")
 
 
 def request(method, path, payload=None):
@@ -94,25 +101,32 @@ def upload_file(content, filename, content_type):
     return created["id"]
 
 
-def text_token(content, bold=False, link=None):
+def text_token(content, bold=False, link=None, code=False):
     token = {"type": "text", "text": {"content": content[:TEXT_LIMIT]}}
     if link:
         token["text"]["link"] = {"url": link}
+    annotations = {}
     if bold:
-        token["annotations"] = {"bold": True}
+        annotations["bold"] = True
+    if code:
+        annotations["code"] = True
+    if annotations:
+        token["annotations"] = annotations
     return token
 
 
 def rich_text(text):
-    # `**굵게**`와 `[라벨](url)`만 변환한다. 나머지는 일반 텍스트로 둔다.
+    # `**굵게**`, `[라벨](url)`, 인라인 코드를 변환한다. 나머지는 일반 텍스트로 둔다.
     tokens, pos = [], 0
     for match in INLINE_RE.finditer(text):
         if match.start() > pos:
             tokens.append(text_token(text[pos:match.start()]))
         if match.group(1):
             tokens.append(text_token(match.group(1), bold=True))
-        else:
+        elif match.group(2):
             tokens.append(text_token(match.group(2), link=match.group(3)))
+        else:
+            tokens.append(text_token(match.group(4), code=True))
         pos = match.end()
     if pos < len(text):
         tokens.append(text_token(text[pos:]))
@@ -146,26 +160,64 @@ def build_blocks(body):
             blocks.append(divider_block())
         blocks.append({"object": "block", "type": "heading_2",
                        "heading_2": {"rich_text": rich_text(head)}})
-        for chunk in re.split(r"\n\s*\n", content.strip()):
-            chunk = chunk.strip()
-            if not chunk:
-                continue
-            image = IMAGE_RE.match(chunk)
-            if image:
-                source = image.group(2)
-                if source.startswith(("http://", "https://")):
-                    blocks.append({"object": "block", "type": "image",
-                                   "image": {"type": "external", "external": {"url": source}}})
-                # 로컬 이미지는 Notion에 올리지 않는다. HTML 렌더러가 담당한다.
-                continue
-            if all(line.lstrip().startswith("- ") for line in chunk.splitlines()):
-                for line in chunk.splitlines():
-                    blocks.append({"object": "block", "type": "bulleted_list_item",
-                                   "bulleted_list_item": {"rich_text": rich_text(line.lstrip()[2:])}})
-                continue
-            blocks.append({"object": "block", "type": "paragraph",
-                           "paragraph": {"rich_text": rich_text(chunk)}})
+        blocks.extend(section_blocks(content))
     return blocks
+
+
+def section_blocks(content):
+    # 코드펜스는 내부에 빈 줄이 있을 수 있어 한 줄씩 훑으며 처리한다.
+    blocks, buffer = [], []
+    lines = content.strip().splitlines()
+
+    def flush():
+        if buffer:
+            blocks.extend(chunk_blocks("\n".join(buffer).strip()))
+            buffer.clear()
+
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.lstrip().startswith("```"):
+            flush()
+            language = line.strip().strip("`").strip() or "plain text"
+            index += 1
+            code = []
+            while index < len(lines) and not lines[index].lstrip().startswith("```"):
+                code.append(lines[index])
+                index += 1
+            index += 1  # 닫는 펜스
+            blocks.append({"object": "block", "type": "code", "code": {
+                "rich_text": [text_token("\n".join(code))],
+                "language": language if language in NOTION_LANGUAGES else "plain text",
+            }})
+            continue
+        if line.strip():
+            buffer.append(line)
+        else:
+            flush()
+        index += 1
+    flush()
+    return blocks
+
+
+def chunk_blocks(chunk):
+    lines = chunk.splitlines()
+    image = IMAGE_RE.match(chunk)
+    if image:
+        source = image.group(2)
+        if source.startswith(("http://", "https://")):
+            return [{"object": "block", "type": "image",
+                     "image": {"type": "external", "external": {"url": source}}}]
+        return []  # 로컬 이미지는 Notion에 올리지 않는다. HTML 렌더러가 담당한다.
+    if all(BULLET_RE.match(line) for line in lines):
+        return [{"object": "block", "type": "bulleted_list_item",
+                 "bulleted_list_item": {"rich_text": rich_text(BULLET_RE.sub("", line))}}
+                for line in lines]
+    if all(NUMBER_RE.match(line) for line in lines):
+        return [{"object": "block", "type": "numbered_list_item",
+                 "numbered_list_item": {"rich_text": rich_text(NUMBER_RE.sub("", line))}}
+                for line in lines]
+    return [{"object": "block", "type": "paragraph", "paragraph": {"rich_text": rich_text(chunk)}}]
 
 
 def build_properties(front_matter):

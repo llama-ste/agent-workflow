@@ -5,7 +5,8 @@
 
 - 의존성 없이 표준 라이브러리만 사용한다.
 - 지원 문법: 프론트매터(key: value, links: [..]), `## 섹션`, 문단, `**굵게**`,
-  `[링크](url)`, `![대체텍스트](이미지)`, `- 목록`.
+  `[링크](url)`, `![대체텍스트](이미지)`, `- 목록`, `1. 번호 목록`,
+  인라인 코드, ``` 코드블록.
 - --embed: 이미지를 data URI로 인라인해 단일 파일로 만든다(블로그·공유용).
 """
 
@@ -60,13 +61,23 @@ def split_sections(body):
 
 
 IMAGE_RE = re.compile(r"^!\[(.*?)\]\((.+?)\)\s*$")
+BULLET_RE = re.compile(r"^\s*-\s+")
+NUMBER_RE = re.compile(r"^\s*\d+\.\s+")
 
 
 def render_inline(text):
+    # 인라인 코드를 먼저 빼두어 그 안의 기호가 굵게·링크로 해석되지 않게 한다.
+    codes = []
+
+    def stash(match):
+        codes.append(html.escape(match.group(1)))
+        return f"\x00{len(codes) - 1}\x00"
+
+    text = re.sub(r"`([^`]+)`", stash, text)
     text = html.escape(text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', text)
-    return text
+    return re.sub(r"\x00(\d+)\x00", lambda m: f"<code>{codes[int(m.group(1))]}</code>", text)
 
 
 def image_src(src, embed, base_dir):
@@ -81,23 +92,54 @@ def image_src(src, embed, base_dir):
         return src  # 파일을 못 읽으면 원본 경로를 유지한다.
 
 
+def render_chunk(block, embed, base_dir):
+    lines = block.splitlines()
+    image = IMAGE_RE.match(block)
+    if image:
+        alt, src = image.group(1), image_src(image.group(2), embed, base_dir)
+        caption = f"<figcaption>{html.escape(alt)}</figcaption>" if alt else ""
+        return f'<figure><img src="{html.escape(src)}" alt="{html.escape(alt)}">{caption}</figure>'
+    if all(BULLET_RE.match(line) for line in lines):
+        items = "".join(f"<li>{render_inline(BULLET_RE.sub('', line))}</li>" for line in lines)
+        return f"<ul>{items}</ul>"
+    if all(NUMBER_RE.match(line) for line in lines):
+        items = "".join(f"<li>{render_inline(NUMBER_RE.sub('', line))}</li>" for line in lines)
+        return f"<ol>{items}</ol>"
+    return f"<p>{render_inline(block)}</p>"
+
+
 def render_blocks(content, embed, base_dir):
-    parts = []
-    for block in re.split(r"\n\s*\n", content.strip()):
-        block = block.strip()
-        if not block:
+    # 코드펜스는 내부에 빈 줄이 있을 수 있어 한 줄씩 훑으며 처리한다.
+    parts, buffer = [], []
+    lines = content.strip().splitlines()
+
+    def flush():
+        if buffer:
+            parts.append(render_chunk("\n".join(buffer).strip(), embed, base_dir))
+            buffer.clear()
+
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.lstrip().startswith("```"):
+            flush()
+            language = line.strip().strip("`").strip()
+            index += 1
+            code = []
+            while index < len(lines) and not lines[index].lstrip().startswith("```"):
+                code.append(lines[index])
+                index += 1
+            index += 1  # 닫는 펜스
+            attribute = f' class="language-{html.escape(language)}"' if language else ""
+            parts.append(f"<pre><code{attribute}>{html.escape(chr(10).join(code))}</code></pre>")
             continue
-        image = IMAGE_RE.match(block)
-        if image:
-            alt, src = image.group(1), image_src(image.group(2), embed, base_dir)
-            caption = f"<figcaption>{html.escape(alt)}</figcaption>" if alt else ""
-            parts.append(f'<figure><img src="{html.escape(src)}" alt="{html.escape(alt)}">{caption}</figure>')
-        elif all(line.lstrip().startswith("- ") for line in block.splitlines()):
-            items = "".join(f"<li>{render_inline(line.lstrip()[2:])}</li>" for line in block.splitlines())
-            parts.append(f"<ul>{items}</ul>")
+        if line.strip():
+            buffer.append(line)
         else:
-            parts.append(f"<p>{render_inline(block)}</p>")
-    return "\n".join(parts)
+            flush()
+        index += 1
+    flush()
+    return "\n".join(part for part in parts if part)
 
 
 def chip(label, value=None, cls=""):
@@ -230,6 +272,12 @@ a {{ color:var(--accent); }}
 ul {{ list-style:none; padding:0; margin:0 0 12px; display:grid; gap:8px; }}
 ul li {{ display:flex; gap:10px; align-items:baseline; color:var(--ink-soft); }}
 ul li::before {{ content:"—"; color:var(--amber); font-family:var(--mono); }}
+ol {{ padding-left:1.3em; margin:0 0 12px; display:grid; gap:8px; }}
+ol li {{ color:var(--ink-soft); padding-left:.2em; }}
+ol li::marker {{ color:var(--accent); font-family:var(--mono); font-size:.9em; }}
+code {{ font-family:var(--mono); font-size:.88em; background:var(--surface-2); border:1px solid var(--line-soft); border-radius:5px; padding:1px 5px; color:var(--ink); }}
+pre {{ background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:13px 15px; overflow-x:auto; margin:0 0 14px; }}
+pre code {{ background:none; border:none; padding:0; font-size:12.5px; line-height:1.7; color:var(--ink-soft); }}
 figure {{ margin:0 0 14px; }}
 figure img {{ border:1px solid var(--line); border-radius:var(--radius); display:block; }}
 figcaption {{ font-family:var(--mono); font-size:11.5px; color:var(--ink-faint); margin-top:8px; }}
