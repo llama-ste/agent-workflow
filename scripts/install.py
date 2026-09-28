@@ -30,7 +30,7 @@ def doc_count():
 def to_absolute(text):
     # 문서 참조(`workflows/x.md`, `guides/x.md`)를 절대 경로로 바꿔 전역 어디서든 읽을 수 있게 한다.
     return re.sub(
-        r"`((?:workflows|guides)/[\w.-]+\.md)`",
+        r"`((?:workflows|guides)/[\w./-]+\.md)`",  # 하위 폴더 경로도 치환한다
         lambda m: f"`{ROOT / m.group(1)}`",
         text,
     )

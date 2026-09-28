@@ -99,9 +99,13 @@ Notion은 집계·열람, HTML은 포트폴리오·공유용 단일 파일을 �
 # Notion 동기화 (HTML 첨부 포함)
 python3 <워크플로우 저장소>/scripts/sync_notion.py <기록.md> --with-html
 
-# HTML만 생성 (포트폴리오·블로그용 단일 파일)
-python3 <워크플로우 저장소>/scripts/render_worklog.py <기록.md> -o <출력.html> --embed
+# HTML만 생성 (포트폴리오·공유용 단일 파일)
+python3 <워크플로우 저장소>/scripts/render_worklog.py <기록.md> -o "$WORKLOG_VAULT/.rendered/<연도>/<이름>.html" --embed
 ```
+
+생성한 HTML은 원본이 아니라 파생물이므로 **`$WORKLOG_VAULT/.rendered/` 아래**에 둔다. 기록 옆에 두면 보관소가 원본과 파생물로 섞이고 Obsidian 목록에도 들어간다. 점으로 시작하는 폴더는 Obsidian이 숨긴다.
+
+**원본을 고치면 파생물은 오래된 내용으로 남는다.** 이미 Notion에 보냈거나 HTML을 만든 기록을 수정하면, 같은 전송을 다시 실행해 맞춘다. 다시 만들지 않을 거라면 그 사실을 사용자에게 알린다.
 
 `NOTION_TOKEN`·`NOTION_DB_ID`가 셸 환경에 없으면 `source ~/.config/agent-workflow/env &&`를 명령 앞에 붙인다.
 토큰 값은 출력하거나 기록에 남기지 않는다. 같은 제목이 이미 있으면 새로 만들지 않고 갱신된다.

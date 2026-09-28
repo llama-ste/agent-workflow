@@ -26,7 +26,7 @@ links: [PR #482]
 **C**는 계산 소유권은 옮겨오지만 지금 팀·트래픽 규모에서 운영할 계층이 하나 늘어나는 비용이 이득을 넘었다.
 결국 **B**를 택했다. 금액의 단일 진실 소스를 서버로 옮기면 화면 수가 늘어도 불일치가 구조적으로 불가능해진다.
 
-![전/후 결제 금액 비교](assets/discount-before-after.svg)
+![전/후 결제 금액 비교](../assets/discount-single-source/discount-before-after.svg)
 
 ## 결과 — 실제로 어떻게 됐나
 

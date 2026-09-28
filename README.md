@@ -47,7 +47,7 @@ AI 에이전트와의 작업은 매번 즉흥적으로 흐른다. 같은 종류�
 - 외부 스킬 자동 설치는 도구에 종속되고 원치 않는 것을 강제한다.
 - 마커 블록 주입은 **기존 내용 보존 · 최초 백업 · 멱등 · 드리프트 점검**을 모두 만족한다.
 
-**작업 기록은 캡처와 표현을 분리했다.** 기록 원본은 프론트매터가 붙은 마크다운 하나(집계·검색에 유리)로 남기고, 보기 좋은 결과물은 렌더링 층에서 만든다. 같은 원본을 Notion(집계·검토)과 HTML(시각화)이 공유하므로 중복이 아니다.
+**작업 기록은 캡처와 표현을 분리했다.** 기록 원본은 프론트매터가 붙은 마크다운 하나(집계·검색에 유리)로 남기고, 보기 좋은 결과물은 렌더링 층에서 만든다. 같은 원본에서 Notion(집계·열람)과 HTML(공유용 단일 파일)이 파생되므로 중복이 아니다.
 
 **외부 스킬·플러그인·오케스트레이션을 강제하지 않는다.** 반복 승인, 모든 작업의 티켓화, 리뷰마다 worktree 생성도 기본에 넣지 않는다. 같은 결과를 일반 문서와 절차만으로 만들 수 있어야 한다.
 
@@ -102,9 +102,19 @@ python3 scripts/install.py             # 실제 연결
 git clone git@github.com:llama-ste/agent-workflow.git ~/agent-workflow && cd ~/agent-workflow && python3 scripts/install.py && python3 scripts/install.py --check
 ```
 
+작업 기록을 쓰려면 환경변수 파일을 한 번 만든다. 보관소 위치와 Notion 토큰이 여기 들어간다.
+
+```sh
+mkdir -p ~/.config/agent-workflow && cp env.example ~/.config/agent-workflow/env && chmod 600 ~/.config/agent-workflow/env
+echo '[ -f ~/.config/agent-workflow/env ] && source ~/.config/agent-workflow/env' >> ~/.zshrc
+```
+
+파일을 열어 값을 채운다. `WORKLOG_VAULT`만 있어도 기록과 HTML 렌더링은 동작하고, Notion 연동은 토큰을 넣은 뒤부터 된다.
+
 설치 후 확인:
 
 - `--check`가 모든 도구에 `✓ 정상`을 출력하는지 확인한다.
+- `source ~/.config/agent-workflow/env && echo "$WORKLOG_VAULT"` 가 보관소 경로를 출력하는지 확인한다.
 - 도구를 재시작하고 새 세션에서 전역 규칙이 실제로 로드되는지 확인한다(예: "지금 적용된 전역 지침을 요약해줘").
 - 손으로 작성한 기존 전역 규칙이 있었다면 백업본(`.bak-...`)과 비교해 관리 블록과 중복되지 않게 정리한다.
 
@@ -124,24 +134,14 @@ git clone git@github.com:llama-ste/agent-workflow.git ~/agent-workflow && cd ~/a
 기록은 작업 저장소가 아니라 **중앙 보관소 한 곳**(`WORKLOG_VAULT`)에 모은다. 마크다운 폴더이므로 Obsidian으로 열어 링크·그래프로 탐색할 수 있고, 앱 없이도 그대로 동작한다.
 한곳에 모이기 때문에 **작업 중에 과거 결정을 근거로 참조**할 수 있다 — 같은 도메인의 이전 판단을 찾아 이미 버린 선택지를 반복하지 않는다.
 
-보관소의 마크다운이 유일한 원본이고, **Notion(집계·열람)**과 **HTML(시각화)**은 여기서 파생된다. 공개 저장소에는 기록 데이터를 두지 않는다.
+보관소의 마크다운이 유일한 원본이고, Notion과 HTML은 여기서 파생된다. 공개 저장소에는 기록 데이터를 두지 않는다.
 
-**Notion 동기화** — 프론트매터가 DB 속성이 되어 기간·유형·도메인으로 집계할 수 있다.
+| 도구 | 역할 |
+| --- | --- |
+| `scripts/sync_notion.py` | Notion DB로 동기화. 프론트매터가 속성이 되어 기간·유형·도메인으로 집계된다 |
+| `scripts/render_worklog.py` | 포트폴리오·공유용 단일 HTML 생성 |
 
-```sh
-python3 scripts/sync_notion.py --init-db <부모_페이지_ID>   # 최초 1회, DB 생성
-python3 scripts/sync_notion.py 기록.md                      # 동기화
-```
-
-토큰은 `NOTION_TOKEN`, 대상 DB는 `NOTION_DB_ID` 환경변수로 읽는다(저장소에 두지 않는다). 같은 제목이 있으면 새로 만들지 않고 갱신한다.
-
-**HTML 렌더링** — 포트폴리오·블로그용 단일 파일을 만든다.
-
-```sh
-python3 scripts/render_worklog.py 기록.md -o out.html --embed
-```
-
-프론트매터 → 헤더·배지, 서사 섹션 → 디자인된 페이지로 렌더링한다. `--embed`는 이미지를 data URI로 인라인한다. 예제는 [worklog/example.md](worklog/example.md).
+형식·저장 위치·전송 절차는 모두 [workflows/worklog.md](workflows/worklog.md)에 있다. 명령과 옵션은 각 스크립트의 `--help`를 본다. 예제는 [worklog/2026/](worklog/2026/).
 
 ## 검증
 

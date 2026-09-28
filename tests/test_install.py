@@ -28,6 +28,13 @@ class InstallTests(unittest.TestCase):
                     self.assertTrue((ROOT / reference).is_file(), f"Missing reference in {source}: {reference}")
                     self.assertIn(str(ROOT / reference), rendered)
 
+    def test_nested_doc_paths_are_made_absolute(self):
+        # 하위 폴더를 만들었을 때 상대 경로가 조용히 남지 않아야 한다.
+        from scripts.install import to_absolute
+        out = to_absolute("참고: `workflows/sub/nested.md` 와 `guides/impact-scope.md`")
+        self.assertIn(f"`{ROOT / 'workflows/sub/nested.md'}`", out)
+        self.assertNotIn("`workflows/sub/nested.md`", out)
+
     def test_merge_is_idempotent_and_preserves_outside_content(self):
         user = "# 내 기존 전역 규칙\n\n손으로 쓴 내용\n"
         once = merge(user, block("codex"))
